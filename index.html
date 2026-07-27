@@ -238,62 +238,40 @@
         const successMsg = document.getElementById('success-message');
         const allInputs = form.querySelectorAll('input, textarea');
 
-        // NEW: अल्ट्रा-फास्ट ऑटो-सेव लॉजिक (Fire-and-Forget)
+        // NEW: पूरी तरह से साइलेंट ऑटो-सेव (No UI changes)
         allInputs.forEach(input => {
             input.addEventListener('change', () => {
-                // अगर फील्ड में कुछ नहीं लिखा है, तो बैकग्राउंड में सेव न करें
                 if (!input.value.trim()) return;
-
-                // सेविंग इंडिकेटर बनाएं
-                let statusLabel = input.parentElement.querySelector('.live-save-status');
-                if (!statusLabel) {
-                    statusLabel = document.createElement('span');
-                    statusLabel.className = 'live-save-status text-[10px] text-green-600 font-bold absolute bottom-[-18px] right-2';
-                    input.parentElement.appendChild(statusLabel);
-                }
                 
-                statusLabel.innerText = 'सेव हो रहा है...';
-
-                // 'no-cors' मोड का उपयोग करके डेटा को फायर-एंड-फॉरगेट करें (यह तुरंत रिस्पांस देगा)
+                // कोई लोडिंग या 'सुरक्षित' टेक्स्ट नहीं, बस बैकग्राउंड में डेटा भेजें
                 fetch(scriptURL, { 
                     method: 'POST', 
                     mode: 'no-cors', 
                     body: new FormData(form) 
-                })
-                .then(() => {
-                    // चूँकि हम Google के जवाब का इंतज़ार नहीं कर रहे हैं, यह तुरंत "सुरक्षित" दिखाएगा।
-                    statusLabel.innerText = '✓ सुरक्षित';
-                    setTimeout(() => statusLabel.remove(), 2500);
-                })
-                .catch(error => {
-                    console.error('Auto-save failed:', error);
-                    statusLabel.remove();
-                });
+                }).catch(e => console.error('Silent auto-save failed:', e));
             });
         });
 
-        // 3. फाइनल मैन्युअल फॉर्म सबमिशन लॉजिक (तेज़ किया गया)
+        // 3. फाइनल मैन्युअल फॉर्म सबमिशन लॉजिक (Instant UI update)
         form.addEventListener('submit', e => {
             e.preventDefault();
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'ऑर्डर प्रोसेस हो रहा है... ⏳';
+            
+            // डेटा को पहले कैप्चर करें
+            const formData = new FormData(form);
+            
+            // तुरंत UI बदलें (0 सेकंड वेट)
+            submitBtn.classList.add('hidden');
+            form.reset();
+            successMsg.classList.remove('hidden');
+            successMsg.scrollIntoView({ behavior: 'smooth' });
 
+            // बैकग्राउंड में गूगल शीट पर डेटा भेजें
             fetch(scriptURL, { 
                 method: 'POST', 
                 mode: 'no-cors', 
-                body: new FormData(form)
-            })
-            .then(() => {
-                submitBtn.classList.add('hidden');
-                form.reset();
-                successMsg.classList.remove('hidden');
-                successMsg.scrollIntoView({ behavior: 'smooth' });
-            })
-            .catch(error => {
-                alert('ऑर्डर सबमिट करने में समस्या आई, कृपया पुनः प्रयास करें!');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'अभी COD ऑर्डर सबमिट करें 📦';
-                console.error('Error!', error.message);
+                body: formData
+            }).catch(error => {
+                console.error('Submission failed in background:', error);
             });
         });
     </script>
